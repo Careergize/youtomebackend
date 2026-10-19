@@ -136,8 +136,10 @@ STATIC_URL = 'static/'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 import json
 WEBRTC_ICE_SERVERS = json.loads(os.getenv('WEBRTC_ICE_SERVERS', '[{"urls":"stun:stun.l.google.com:19302"}]'))
-OTP_DELIVERY_MODE = os.getenv('OTP_DELIVERY_MODE', 'local' if os.getenv('DJANGO_DEBUG', 'true').lower() == 'true' else 'disabled')
-OTP_ALLOW_TEST_CODE = os.getenv('OTP_ALLOW_TEST_CODE', 'false').lower() == 'true'
+# Temporary registration mode: every mobile number uses 1234 without SMS.
+# Restore environment-based delivery settings when real OTP delivery resumes.
+OTP_DELIVERY_MODE = 'local'
+OTP_ALLOW_TEST_CODE = True
 MSG91_AUTH_KEY = os.getenv('MSG91_AUTH_KEY', '')
 MSG91_TEMPLATE_ID = os.getenv('MSG91_TEMPLATE_ID', '')
 DEBUG = os.getenv('DJANGO_DEBUG', 'true').lower() == 'true'

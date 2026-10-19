@@ -34,6 +34,8 @@ If Windows' Python app alias does not work, use the full path to your installed 
 
 ### Mobile OTP signup and login
 
+Temporary current behavior: settings force local delivery and enable the fixed code `1234` for all users, including with debug disabled. No SMS is sent. The popup prefills the code, and new users continue to profile registration after verification. Restore the environment-based OTP_DELIVERY_MODE and OTP_ALLOW_TEST_CODE settings in config/settings.py to resume the delivery configuration described below.
+
 The welcome popup collects only name and mobile number. `POST /api/auth/otp/request/` accepts `mobile` and optional `name` (required for a new number). `POST /api/auth/otp/verify/` accepts `challengeId`, `mobile`, and a `code` (four digits locally, six digits with MSG91). Verification creates a minimal account only once and returns `token` and `isNewUser`. New users continue to `/profile` to add remaining details. Incomplete profiles are excluded from discovery until age and profile type are supplied. Mobile numbers are visible only in the owner's `/api/me/` response and Django admin, not other members' profile responses.
 
 MSG91 delivery is supported. With Django debug mode enabled, the default remains local test delivery. In production, select MSG91 and configure its credentials; local test access requires explicitly setting OTP_ALLOW_TEST_CODE=true. You can also select local delivery explicitly in the terminal that starts Django:
