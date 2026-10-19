@@ -20,6 +20,22 @@ class ApiTests(APITestCase):
         self.pc = Profile.objects.create(user=self.c,name='Chris',gender='Groom',age=35,city='Delhi')
         self.client.force_authenticate(self.a)
 
+    def test_presence_heartbeat_expiry_and_logout(self):
+        url = f'/api/profiles/{self.pb.pk}/'
+        self.assertFalse(self.client.get(url).data['isOnline'])
+        self.assertEqual(APIClient().post('/api/presence/').status_code, 401)
+        self.client.force_authenticate(self.b)
+        self.assertEqual(self.client.post('/api/presence/').status_code, 204)
+        self.client.force_authenticate(self.a)
+        self.assertTrue(self.client.get(url).data['isOnline'])
+        Profile.objects.filter(pk=self.pb.pk).update(last_seen_at=timezone.now()-timedelta(seconds=76))
+        self.assertFalse(self.client.get(url).data['isOnline'])
+        self.client.force_authenticate(self.b)
+        self.client.post('/api/presence/')
+        self.client.post('/api/auth/logout/')
+        self.client.force_authenticate(self.a)
+        self.assertFalse(self.client.get(url).data['isOnline'])
+
     def test_incomplete_sender_interest_reaches_recipient(self):
         self.pa.age = None
         self.pa.gender = ''

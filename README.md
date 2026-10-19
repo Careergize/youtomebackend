@@ -30,6 +30,10 @@ If Windows' Python app alias does not work, use the full path to your installed 
 
 ### Profile details
 
+Profile photo uploads: choose **Edit profile → Upload a photo**, select JPEG, PNG, or WebP (up to 5 MB and 20 megapixels), then **Save changes**. Authenticated `POST /api/me/photo/` takes multipart field `photo` and returns a URL for the profile's existing `photos` list. Images are decoded, oriented, resized to at most 1600 pixels per side, and re-encoded as JPEG without source metadata. Existing photo URLs remain supported by the API. Image URLs are publicly viewable, as profile photos are displayed to members.
+
+Install the updated requirements, and set `MEDIA_ROOT` to a persistent, writable directory on the backend host (default: `backend/media`). Preserve this directory during deployments and include it in backups. The API serves uploaded images at `/api/photos/{uuid}/` with debug enabled or disabled; no frontend file hosting is required. Multiple backend instances must share the same persistent storage. Uploading stages the file; it becomes the profile photo when the user saves the profile.
+
 `PATCH /api/me/` accepts personal, education, career, family, horoscope, biography, photos, and partner-preference fields shown by My Profile. Additional fields include `weightKg` (optional numeric string, 20–300 kg), `bodyType`, `profileCreatedBy`, `gothram`, and `dateOfBirth` (ISO date; calculates adult age on save). Family details include sisters, brothers, ancestral origin, and family status. Career details include employment type, teaching/academia, and income brackets below 10 lakhs. Horoscope documents use an HTTP/HTTPS `horoscope.horoscopeUrl`; file upload is not implemented. These optional details use the existing JSON storage, so no database migration is required. Nested updates preserve other saved fields. Blank partner-preference lists mean any; age and height ranges are validated. Mobile numbers remain owner-only, and no paid contact-unlock behavior is added.
 
 ### Mobile OTP signup and login
@@ -100,6 +104,8 @@ Keep credentials on the server; never put them in Vite variables or commit them.
 
 
 ## Browser voice and video calls
+
+Online indicators use authenticated `POST /api/presence/` heartbeats every 25 seconds while the site is visible. Profiles show online for 75 seconds after the last heartbeat; logout clears presence immediately. Run `python manage.py migrate` before deploying this feature. Profile cards and chat show a green online indicator; closing or hiding the site lets presence expire automatically.
 
 Open a chat with an accepted connection and select the phone or camera button. The recipient sees an incoming-call panel anywhere on the site while logged in, with Accept and Decline controls. Both participants can hang up or mute their microphone; video calls also have a camera toggle. Allow microphone/camera access when the browser asks. Incoming calls are polled every 2.5 seconds and require the site to remain open; there are no push notifications for closed browsers.
 

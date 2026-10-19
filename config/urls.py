@@ -3,6 +3,7 @@ from django.urls import path
 from matchmaking import views
 from matchmaking import otp
 from matchmaking import calls
+from matchmaking import photos
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/health/', views.health),
@@ -12,6 +13,8 @@ urlpatterns = [
     path('api/auth/otp/request/', otp.request_otp),
     path('api/auth/otp/verify/', otp.verify_otp),
     path('api/me/', views.Me.as_view()),
+    path('api/me/photo/', photos.upload_photo),
+    path('api/photos/<uuid:photo_id>/', photos.profile_photo, name='profile-photo'),
     path('api/presence/', views.presence),
     path('api/profiles/', views.Profiles.as_view()),
     path('api/profiles/<uuid:pk>/', views.ProfileDetail.as_view()),
