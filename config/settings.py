@@ -23,15 +23,6 @@ load_dotenv(BASE_DIR / '.env')
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-!v6r0q-5zx4007nlmrn3vlr5$89%7j%bibm=yp=a#a8oh30lxc'
-
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
-
-ALLOWED_HOSTS = ['*']
-
-
 # Application definition
 
 INSTALLED_APPS = [
@@ -141,7 +132,6 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-import os
 import json
 WEBRTC_ICE_SERVERS = json.loads(os.getenv('WEBRTC_ICE_SERVERS', '[{"urls":"stun:stun.l.google.com:19302"}]'))
 OTP_DELIVERY_MODE = os.getenv('OTP_DELIVERY_MODE', 'local' if os.getenv('DJANGO_DEBUG', 'true').lower() == 'true' else 'disabled')
@@ -149,8 +139,12 @@ MSG91_AUTH_KEY = os.getenv('MSG91_AUTH_KEY', '')
 MSG91_TEMPLATE_ID = os.getenv('MSG91_TEMPLATE_ID', '')
 DEBUG = os.getenv('DJANGO_DEBUG', 'true').lower() == 'true'
 SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'development-only-you2me-change-before-deploying')
-if not DEBUG and SECRET_KEY.startswith('development-only'):
-    raise RuntimeError('Set DJANGO_SECRET_KEY for production')
+if not DEBUG and (not SECRET_KEY.strip() or SECRET_KEY.startswith(('development-only', 'django-insecure-', 'replace-with-'))):
+    raise RuntimeError(
+        'Set DJANGO_SECRET_KEY for production. Run python setup_ec2.py '
+        'to save a generated key in the .env beside manage.py. '
+        'Unset any stale exported DJANGO_SECRET_KEY before restarting.'
+    )
 ALLOWED_HOSTS = os.getenv('DJANGO_ALLOWED_HOSTS', 'localhost,127.0.0.1,testserver').split(',')
 INSTALLED_APPS += ['rest_framework', 'rest_framework.authtoken', 'matchmaking']
 TIME_ZONE = 'Asia/Kolkata'
@@ -163,6 +157,8 @@ REST_FRAMEWORK = {
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination', 'PAGE_SIZE': 50,
 }
 if not DEBUG:
+    # Nginx must overwrite X-Forwarded-Proto and proxy to a loopback-only server.
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
     SECURE_SSL_REDIRECT = True
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
