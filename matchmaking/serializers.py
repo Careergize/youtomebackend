@@ -120,6 +120,19 @@ class ProfileSerializer(serializers.ModelSerializer):
                 result['verification']['mobileVerified'] = account is not None
         return result
 
+class PublicProfileSerializer(serializers.BaseSerializer):
+    def to_representation(self, obj):
+        from copy import deepcopy
+        result = deepcopy(DEFAULTS)
+        full = ProfileSerializer(obj).data
+        for key in ['id', 'name', 'gender', 'age', 'heightInches', 'height', 'city', 'state', 'religion', 'community', 'verification', 'isOnline']:
+            result[key] = full[key]
+        result['photos'] = full['photos'][:1]
+        result['education']['degree'] = full['education']['degree']
+        result['occupation']['title'] = full['occupation']['title']
+        result.update(compatibilityScore=0, lastActive=None, isShortlisted=False, interestStatus='none')
+        return result
+
 class RegisterSerializer(serializers.Serializer):
     email = serializers.EmailField(max_length=150)
     password = serializers.CharField(write_only=True, max_length=128)

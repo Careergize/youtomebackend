@@ -12,6 +12,7 @@ from rest_framework.authtoken.models import Token
 from rest_framework.throttling import AnonRateThrottle
 from .models import Profile, Shortlist, Interest
 from .serializers import ProfileSerializer, RegisterSerializer, MessageSerializer
+from .serializers import PublicProfileSerializer
 
 class AuthThrottle(AnonRateThrottle):
     scope = 'auth'
@@ -62,6 +63,12 @@ def presence(request):
 class Me(generics.RetrieveUpdateAPIView):
     serializer_class = ProfileSerializer
     def get_object(self): return get_object_or_404(Profile, user=self.request.user)
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def profile_preview(request):
+    profiles = Profile.objects.filter(is_active=True, user__is_active=True, age__gte=18, gender__in=['Bride', 'Groom']).order_by('-updated_at', 'id')[:12]
+    return Response(PublicProfileSerializer(profiles, many=True).data)
 
 class Profiles(generics.ListAPIView):
     serializer_class = ProfileSerializer

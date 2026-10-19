@@ -30,6 +30,8 @@ If Windows' Python app alias does not work, use the full path to your installed 
 
 ### Profile details
 
+Visitors can browse up to 12 recently updated, active, complete registered profiles through `GET /api/profiles/preview/`. The preview includes basic card details and the first photo. Full profiles, interests, shortlists, messages, and calls require login. Birth dates, biographies, employers, family details, and contact details are excluded from the preview. The homepage opens directly to browsing without an automatic signup popup.
+
 Profile photo uploads: choose **Edit profile → Upload a photo**, select JPEG, PNG, or WebP (up to 5 MB and 20 megapixels), then **Save changes**. Authenticated `POST /api/me/photo/` takes multipart field `photo` and returns a URL for the profile's existing `photos` list. Images are decoded, oriented, resized to at most 1600 pixels per side, and re-encoded as JPEG without source metadata. Existing photo URLs remain supported by the API. Image URLs are publicly viewable, as profile photos are displayed to members.
 
 Install the updated requirements, and set `MEDIA_ROOT` to a persistent, writable directory on the backend host (default: `backend/media`). Preserve this directory during deployments and include it in backups. The API serves uploaded images at `/api/photos/{uuid}/` with debug enabled or disabled; no frontend file hosting is required. Multiple backend instances must share the same persistent storage. Uploading stages the file; it becomes the profile photo when the user saves the profile.

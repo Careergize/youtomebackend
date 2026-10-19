@@ -17,6 +17,7 @@ urlpatterns = [
     path('api/photos/<uuid:photo_id>/', photos.profile_photo, name='profile-photo'),
     path('api/presence/', views.presence),
     path('api/profiles/', views.Profiles.as_view()),
+    path('api/profiles/preview/', views.profile_preview),
     path('api/profiles/<uuid:pk>/', views.ProfileDetail.as_view()),
     path('api/profiles/<uuid:pk>/shortlist/', views.shortlist),
     path('api/profiles/<uuid:pk>/interest/', views.send_interest),
