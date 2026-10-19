@@ -202,7 +202,7 @@ class ApiTests(APITestCase):
         self.client.force_authenticate(self.a)
         self.assertEqual(self.client.get(f'/api/interests/{pk}/messages/').data['results'][0]['sender'],'them')
 
-@override_settings(DEBUG=True, OTP_DELIVERY_MODE='local')
+@override_settings(DEBUG=True, OTP_DELIVERY_MODE='local', OTP_ALLOW_TEST_CODE=False)
 class OtpTests(APITestCase):
     def setUp(self):
         from django.core.cache import cache
@@ -267,6 +267,14 @@ class OtpTests(APITestCase):
             self.assertEqual(self.request_code().status_code, 503)
         with override_settings(OTP_DELIVERY_MODE='disabled'):
             self.assertEqual(self.request_code().status_code, 503)
+
+    @override_settings(DEBUG=False, SECURE_SSL_REDIRECT=False, OTP_ALLOW_TEST_CODE=True)
+    def test_explicit_test_code_with_debug_disabled(self):
+        response = self.request_code()
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['devOtp'], '1234')
+        self.assertEqual(self.verify(response, code='9999').status_code, 400)
+        self.assertEqual(self.verify(response, code='1234').status_code, 200)
 
     def test_incomplete_profiles_hidden_and_mobile_private(self):
         first = self.verify(self.request_code())

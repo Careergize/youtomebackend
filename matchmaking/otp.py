@@ -1,4 +1,4 @@
-"""Mobile authentication. Local test delivery is unavailable in production."""
+"""Mobile authentication with explicitly enabled test delivery."""
 import re
 import secrets
 from datetime import timedelta
@@ -17,7 +17,9 @@ from rest_framework.authtoken.models import Token
 from .sms import send_msg91_otp, SmsDeliveryError
 
 def delivery_available():
-    return settings.OTP_DELIVERY_MODE == 'msg91' or (settings.DEBUG and settings.OTP_DELIVERY_MODE == 'local')
+    return settings.OTP_DELIVERY_MODE == 'msg91' or (
+        settings.OTP_DELIVERY_MODE == 'local' and (settings.DEBUG or settings.OTP_ALLOW_TEST_CODE)
+    )
 
 def normalize_mobile(value):
     value = serializers.CharField(max_length=30).run_validation(value)

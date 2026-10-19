@@ -36,14 +36,14 @@ If Windows' Python app alias does not work, use the full path to your installed 
 
 The welcome popup collects only name and mobile number. `POST /api/auth/otp/request/` accepts `mobile` and optional `name` (required for a new number). `POST /api/auth/otp/verify/` accepts `challengeId`, `mobile`, and a `code` (four digits locally, six digits with MSG91). Verification creates a minimal account only once and returns `token` and `isNewUser`. New users continue to `/profile` to add remaining details. Incomplete profiles are excluded from discovery until age and profile type are supplied. Mobile numbers are visible only in the owner's `/api/me/` response and Django admin, not other members' profile responses.
 
-MSG91 delivery is supported. With Django debug mode enabled, the default remains local test delivery. In production, select MSG91 and configure its credentials; local bypass is disabled. You can also select local delivery explicitly in the terminal that starts Django:
+MSG91 delivery is supported. With Django debug mode enabled, the default remains local test delivery. In production, select MSG91 and configure its credentials; local test access requires explicitly setting OTP_ALLOW_TEST_CODE=true. You can also select local delivery explicitly in the terminal that starts Django:
 
 ```powershell
 $env:OTP_DELIVERY_MODE = 'local'
 python manage.py runserver 127.0.0.1:8001
 ```
 
-This displays the fixed development OTP `1234` in the popup; no SMS is sent. Local delivery cannot work with `DJANGO_DEBUG=false`. MSG91 mode generates a random six-digit OTP, sends it using SendOTP, and verifies the saved hash in Django. Provider failure prevents issuing a usable new challenge. `.env.example` documents variables; backend/.env is loaded automatically, while existing process environment variables take precedence. Existing email accounts remain available at `/login/email`; mobile signup does not automatically link them.
+This displays the fixed development OTP `1234` in the popup; no SMS is sent. For temporary testing with `DJANGO_DEBUG=false`, set `OTP_DELIVERY_MODE=local` and `OTP_ALLOW_TEST_CODE=true`, then restart the backend. This permits access using the public test code `1234`; set `OTP_ALLOW_TEST_CODE=false` when testing ends. MSG91 mode generates a random six-digit OTP, sends it using SendOTP, and verifies the saved hash in Django. Provider failure prevents issuing a usable new challenge. `.env.example` documents variables; backend/.env is loaded automatically, while existing process environment variables take precedence. Existing email accounts remain available at `/login/email`; mobile signup does not automatically link them.
 
 Codes expire after five minutes, are stored as hashes, allow five verification attempts, and are consumed on success. Resends reset the challenge lifetime and attempts, require a 60-second wait, and are capped at five per mobile number per hour. The local code remains `1234`. API authentication endpoints also use IP throttling. Use PostgreSQL for production row locking and a shared cache for multi-worker throttles.
 

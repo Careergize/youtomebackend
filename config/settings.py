@@ -26,6 +26,7 @@ load_dotenv(BASE_DIR / '.env')
 # Application definition
 
 INSTALLED_APPS = [
+    'corsheaders',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -35,6 +36,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -135,6 +137,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 import json
 WEBRTC_ICE_SERVERS = json.loads(os.getenv('WEBRTC_ICE_SERVERS', '[{"urls":"stun:stun.l.google.com:19302"}]'))
 OTP_DELIVERY_MODE = os.getenv('OTP_DELIVERY_MODE', 'local' if os.getenv('DJANGO_DEBUG', 'true').lower() == 'true' else 'disabled')
+OTP_ALLOW_TEST_CODE = os.getenv('OTP_ALLOW_TEST_CODE', 'false').lower() == 'true'
 MSG91_AUTH_KEY = os.getenv('MSG91_AUTH_KEY', '')
 MSG91_TEMPLATE_ID = os.getenv('MSG91_TEMPLATE_ID', '')
 DEBUG = os.getenv('DJANGO_DEBUG', 'true').lower() == 'true'
@@ -146,6 +149,13 @@ if not DEBUG and (not SECRET_KEY.strip() or SECRET_KEY.startswith(('development-
         'Unset any stale exported DJANGO_SECRET_KEY before restarting.'
     )
 ALLOWED_HOSTS = os.getenv('DJANGO_ALLOWED_HOSTS', 'localhost,127.0.0.1,testserver').split(',')
+CORS_ALLOWED_ORIGINS = [
+    origin.strip() for origin in os.getenv(
+        'DJANGO_CORS_ALLOWED_ORIGINS',
+        'https://www.you2mematrimonial.com,https://you2mematrimonial.com',
+    ).split(',') if origin.strip()
+]
+CORS_URLS_REGEX = r'^/api/.*$'
 INSTALLED_APPS += ['rest_framework', 'rest_framework.authtoken', 'matchmaking']
 TIME_ZONE = 'Asia/Kolkata'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
