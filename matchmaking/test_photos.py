@@ -1,5 +1,4 @@
 import io
-import tempfile
 from PIL import Image
 from django.contrib.auth.models import User
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -10,9 +9,10 @@ from .models import Profile
 
 class PhotoUploadTests(APITestCase):
     def setUp(self):
-        directory = tempfile.TemporaryDirectory()
-        self.addCleanup(directory.cleanup)
-        settings = override_settings(MEDIA_ROOT=directory.name)
+        settings = override_settings(STORAGES={
+            'default': {'BACKEND': 'django.core.files.storage.InMemoryStorage'},
+            'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'},
+        })
         settings.enable()
         self.addCleanup(settings.disable)
         self.user = User.objects.create_user(username='photo-member')
@@ -23,7 +23,7 @@ class PhotoUploadTests(APITestCase):
         output = io.BytesIO()
         Image.new('RGB', (2000, 1000), 'red').save(output, 'PNG')
         photo = SimpleUploadedFile('photo.png', output.getvalue(), content_type='image/png')
-        response = self.client.post('/api/me/photo/', {'photo': photo}, format='multipart')
+        response = self.client.post('/api/me/photo/', {'photo': photo}, format='multipart', HTTP_HOST='localhost')
         self.assertEqual(response.status_code, 201, response.data)
         url = response.data['url']
         saved = self.client.patch('/api/me/', {'photos': [url]}, format='json')
