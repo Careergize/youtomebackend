@@ -3,6 +3,7 @@ from django.contrib.auth.models import User
 from django.db import transaction, IntegrityError
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 from rest_framework import generics, serializers
 from rest_framework.decorators import api_view, permission_classes, throttle_classes
 from rest_framework.permissions import AllowAny
@@ -48,7 +49,14 @@ def login(request):
 
 @api_view(['POST'])
 def logout(request):
+    Profile.objects.filter(user=request.user).update(last_seen_at=None)
     Token.objects.filter(user=request.user).delete()
+    return Response(status=204)
+
+@api_view(['POST'])
+def presence(request):
+    get_object_or_404(Profile, user=request.user, is_active=True)
+    Profile.objects.filter(user=request.user).update(last_seen_at=timezone.now())
     return Response(status=204)
 
 class Me(generics.RetrieveUpdateAPIView):

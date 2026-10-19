@@ -12,6 +12,7 @@ urlpatterns = [
     path('api/auth/otp/request/', otp.request_otp),
     path('api/auth/otp/verify/', otp.verify_otp),
     path('api/me/', views.Me.as_view()),
+    path('api/presence/', views.presence),
     path('api/profiles/', views.Profiles.as_view()),
     path('api/profiles/<uuid:pk>/', views.ProfileDetail.as_view()),
     path('api/profiles/<uuid:pk>/shortlist/', views.shortlist),

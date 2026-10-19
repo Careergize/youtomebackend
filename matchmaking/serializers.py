@@ -94,6 +94,8 @@ class ProfileSerializer(serializers.ModelSerializer):
         for key, default in DEFAULTS.items():
             if isinstance(default, dict): result[key] = {**default, **result[key]}
         result.update(verification={'isVerified': obj.is_verified, 'idVerified': obj.is_verified, 'mobileVerified': False, 'workVerified': False, 'badgeText': 'Verified' if obj.is_verified else 'Not verified'}, compatibilityScore=0, isOnline=False, lastActive=obj.updated_at.isoformat(), isShortlisted=False, interestStatus='none')
+        result['isOnline'] = bool(obj.is_active and obj.last_seen_at and (timezone.now() - obj.last_seen_at).total_seconds() < 75)
+        result['lastActive'] = obj.last_seen_at.isoformat() if obj.last_seen_at else None
         request = self.context.get('request')
         if request and request.user.is_authenticated:
             result['isShortlisted'] = Shortlist.objects.filter(user=request.user, profile=obj).exists()

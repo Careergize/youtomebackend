@@ -15,6 +15,7 @@ class Profile(models.Model):
     details = models.JSONField(default=dict, blank=True)
     is_verified = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
+    last_seen_at = models.DateTimeField(null=True, blank=True)
     updated_at = models.DateTimeField(auto_now=True)
 
 class Shortlist(models.Model):
