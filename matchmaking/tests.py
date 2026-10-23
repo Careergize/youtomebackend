@@ -64,7 +64,10 @@ class ApiTests(APITestCase):
         connection = Interest.objects.create(sender=self.pa, recipient=self.pb)
         offer = {'type': 'offer', 'sdp': 'v=0\r\na=test offer\r\n'}
         data = {'interestId': connection.pk, 'kind': 'video', 'offer': offer}
-        self.assertEqual(self.client.post('/api/calls/', data, format='json').status_code, 404)
+        pending_call = self.client.post('/api/calls/', data, format='json')
+        self.assertEqual(pending_call.status_code, 201)
+        self.assertEqual(connection.status, 'pending')
+        self.client.patch(f"/api/calls/{pending_call.data['id']}/", {'action': 'end'})
         connection.status = 'accepted'
         connection.save()
         self.assertEqual(self.client.post('/api/calls/', {**data, 'offer': {}}, format='json').status_code, 400)
@@ -92,6 +95,48 @@ class ApiTests(APITestCase):
         self.assertEqual(self.client.patch(url, {'action': 'end'}).data['status'], 'ended')
         self.assertEqual(self.client.patch(url, {'action': 'candidate', 'candidate': candidate}, format='json').status_code, 409)
         self.assertEqual(self.client.get('/api/calls/').data, [])
+
+    def test_call_declined_connection_and_end_of_candidates(self):
+        connection = Interest.objects.create(sender=self.pa, recipient=self.pb, status='declined')
+        data = {'interestId': connection.pk, 'kind': 'voice', 'offer': {'type': 'offer', 'sdp': 'offer'}}
+        self.assertEqual(self.client.post('/api/calls/', data, format='json').status_code, 404)
+        connection.status = 'pending'
+        connection.save()
+        result = self.client.post('/api/calls/', data, format='json')
+        self.assertEqual(result.status_code, 201)
+        url = f"/api/calls/{result.data['id']}/"
+        marker = {'candidate': '', 'sdpMid': '0', 'sdpMLineIndex': 0}
+        self.assertEqual(self.client.patch(url, {'action': 'candidate', 'candidate': marker}, format='json').status_code, 200)
+        self.client.force_authenticate(self.b)
+        self.assertEqual(self.client.get(url).data['candidates'], [marker])
+        connection.status = 'declined'
+        connection.save()
+        self.assertEqual(self.client.get(url).data['status'], 'ended')
+
+    @override_settings(WEBRTC_ICE_SERVERS=[{'urls': 'stun:example.com:3478'}],
+                       WEBRTC_TURN_URLS=['turn:relay.example.com:3478?transport=udp', 'turn:relay.example.com:3478?transport=tcp'],
+                       WEBRTC_TURN_SECRET='test-server-only-secret', WEBRTC_TURN_TTL=3600)
+    @patch('matchmaking.calls.time.time', return_value=1700000000)
+    def test_temporary_turn_credentials(self, now):
+        import base64
+        import hashlib
+        import hmac
+        response = self.client.get('/api/calls/config/')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response['Cache-Control'], 'no-store, private')
+        relay = response.data['iceServers'][-1]
+        self.assertEqual(relay['username'], f'1700003600:{self.a.pk}')
+        expected = base64.b64encode(hmac.new(b'test-server-only-secret', relay['username'].encode(), hashlib.sha1).digest()).decode()
+        self.assertEqual(relay['credential'], expected)
+        self.assertNotIn('test-server-only-secret', str(response.data))
+        self.client.force_authenticate(self.b)
+        self.assertNotEqual(self.client.get('/api/calls/config/').data['iceServers'][-1]['credential'], relay['credential'])
+        self.assertEqual(APIClient().get('/api/calls/config/').status_code, 401)
+        self.assertEqual(len(response.data['iceServers']), 2)
+
+    @override_settings(WEBRTC_ICE_SERVERS=[{'urls': 'stun:example.com:3478'}], WEBRTC_TURN_URLS=[], WEBRTC_TURN_SECRET='')
+    def test_stun_only_configuration_remains_supported(self):
+        self.assertEqual(self.client.get('/api/calls/config/').data, {'iceServers': [{'urls': 'stun:example.com:3478'}]})
 
     def test_call_timeout_decline_and_voice(self):
         connection = Interest.objects.create(sender=self.pa, recipient=self.pb, status='accepted')

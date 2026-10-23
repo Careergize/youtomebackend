@@ -1,3 +1,7 @@
+import base64
+import hashlib
+import hmac
+import time
 from datetime import timedelta
 from django.conf import settings
 from django.db import transaction
@@ -52,7 +56,7 @@ def calls(request):
     kind = serializers.ChoiceField(choices=['voice', 'video']).run_validation(request.data.get('kind'))
     offer = description(request.data.get('offer'), 'offer')
     interest_id = serializers.IntegerField().run_validation(request.data.get('interestId'))
-    interest = get_object_or_404(Interest.objects.filter(Q(sender=own) | Q(recipient=own)), pk=interest_id, status='accepted')
+    interest = get_object_or_404(Interest.objects.filter(Q(sender=own) | Q(recipient=own)), pk=interest_id, status__in=['pending', 'accepted'])
     other = interest.recipient if interest.sender_id == own.pk else interest.sender
     with transaction.atomic():
         # Serialize calls sharing either member, including simultaneous dial attempts.
@@ -72,7 +76,7 @@ def call_detail(request, pk):
     with transaction.atomic():
         call = get_object_or_404(Call.objects.select_for_update().select_related('caller__user', 'recipient__user'),
                                  Q(caller__user=request.user) | Q(recipient__user=request.user), pk=pk)
-        if call.interest.status != 'accepted' or not call.caller.is_active or not call.recipient.is_active:
+        if call.interest.status not in ['pending', 'accepted'] or not call.caller.is_active or not call.recipient.is_active:
             call.status = 'ended'
             call.save(update_fields=['status', 'updated_at'])
         if request.method == 'GET':
@@ -104,7 +108,7 @@ def call_detail(request, pk):
             candidate = request.data.get('candidate')
             if not isinstance(candidate, dict):
                 raise serializers.ValidationError('Invalid ICE candidate.')
-            cleaned = {'candidate': serializers.CharField(max_length=4096).run_validation(candidate.get('candidate')),
+            cleaned = {'candidate': serializers.CharField(max_length=4096, allow_blank=True, trim_whitespace=False).run_validation(candidate.get('candidate')),
                        'sdpMid': serializers.CharField(max_length=100, allow_null=True).run_validation(candidate.get('sdpMid')),
                        'sdpMLineIndex': serializers.IntegerField(min_value=0, max_value=100, allow_null=True).run_validation(candidate.get('sdpMLineIndex'))}
             field = 'caller_candidates' if outgoing else 'recipient_candidates'
@@ -120,4 +124,13 @@ def call_detail(request, pk):
 @api_view(['GET'])
 @throttle_classes([CallThrottle])
 def call_config(request):
-    return Response({'iceServers': settings.WEBRTC_ICE_SERVERS})
+    servers = list(settings.WEBRTC_ICE_SERVERS)
+    if settings.WEBRTC_TURN_URLS and settings.WEBRTC_TURN_SECRET:
+        username = f'{int(time.time()) + settings.WEBRTC_TURN_TTL}:{request.user.pk}'
+        credential = base64.b64encode(hmac.new(
+            settings.WEBRTC_TURN_SECRET.encode(), username.encode(), hashlib.sha1,
+        ).digest()).decode()
+        servers.append({'urls': settings.WEBRTC_TURN_URLS, 'username': username, 'credential': credential})
+    response = Response({'iceServers': servers})
+    response['Cache-Control'] = 'no-store, private'
+    return response

@@ -137,6 +137,17 @@ MEDIA_ROOT = Path(os.getenv('MEDIA_ROOT', str(BASE_DIR / 'media')))
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 import json
 WEBRTC_ICE_SERVERS = json.loads(os.getenv('WEBRTC_ICE_SERVERS', '[{"urls":"stun:stun.l.google.com:19302"}]'))
+# Coturn REST authentication. Keep the shared secret on the server only.
+WEBRTC_TURN_URLS = [url.strip() for url in os.getenv('WEBRTC_TURN_URLS', '').split(',') if url.strip()]
+WEBRTC_TURN_SECRET = os.getenv('WEBRTC_TURN_SECRET', '')
+WEBRTC_TURN_TTL = max(600, min(86400, int(os.getenv('WEBRTC_TURN_TTL', '3600'))))
+if bool(WEBRTC_TURN_URLS) != bool(WEBRTC_TURN_SECRET):
+    from django.core.exceptions import ImproperlyConfigured
+    raise ImproperlyConfigured('Set both WEBRTC_TURN_URLS and WEBRTC_TURN_SECRET for TURN.')
+if any(not url.startswith(('turn:', 'turns:')) for url in WEBRTC_TURN_URLS):
+    from django.core.exceptions import ImproperlyConfigured
+    raise ImproperlyConfigured('WEBRTC_TURN_URLS must contain turn: or turns: URLs.')
+
 # Temporary registration mode: every mobile number uses 1234 without SMS.
 # Restore environment-based delivery settings when real OTP delivery resumes.
 OTP_DELIVERY_MODE = 'local'
