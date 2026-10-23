@@ -137,7 +137,7 @@ def respond_interest(request, pk):
 class Messages(generics.ListCreateAPIView):
     serializer_class = MessageSerializer
     def connection(self):
-        return get_object_or_404(Interest.objects.filter(Q(sender__user=self.request.user) | Q(recipient__user=self.request.user)), pk=self.kwargs['pk'], status='accepted')
+        return get_object_or_404(Interest.objects.filter(Q(sender__user=self.request.user) | Q(recipient__user=self.request.user)), pk=self.kwargs['pk'], status__in=['pending', 'accepted'], sender__is_active=True, recipient__is_active=True)
     def get_queryset(self): return self.connection().messages.select_related('sender')
     def perform_create(self, serializer):
         serializer.save(interest=self.connection(), sender=get_object_or_404(Profile,user=self.request.user))
@@ -149,3 +149,33 @@ def plans(request):
         {'id': 'gold', 'name': 'YOU2ME Gold', 'currency': 'INR', 'price': 500, 'originalPrice': 4999, 'durationMonths': 3, 'freeTrialMonths': 2},
         {'id': 'elite', 'name': 'YOU2ME Royale VIP', 'currency': 'INR', 'price': 2000, 'originalPrice': 4999, 'durationMonths': 6, 'freeTrialMonths': 2},
     ])
+
+
+@api_view(['GET'])
+def inbox(request):
+    connections = Interest.objects.filter(
+        Q(sender__user=request.user) | Q(recipient__user=request.user),
+        status__in=['pending', 'accepted'], sender__is_active=True, recipient__is_active=True,
+    ).select_related('sender__user', 'recipient__user').prefetch_related('messages')
+    rows = []
+    for connection in connections:
+        history = list(connection.messages.all())
+        if not history:
+            continue
+        other = connection.recipient if connection.sender.user_id == request.user.id else connection.sender
+        rows.append({'id': connection.id,
+            'profile': ProfileSerializer(other, context={'request': request}).data,
+            'lastMessage': MessageSerializer(history[-1], context={'request': request}).data,
+            'unread': sum(m.read_at is None and m.sender_id == other.id for m in history)})
+    rows.sort(key=lambda row: row['lastMessage']['time'], reverse=True)
+    return Response(rows)
+
+
+@api_view(['POST'])
+def read_messages(request, pk):
+    connection = get_object_or_404(Interest.objects.filter(
+        Q(sender__user=request.user) | Q(recipient__user=request.user)), pk=pk)
+    through = serializers.IntegerField(min_value=1).run_validation(request.data.get('through'))
+    connection.messages.exclude(sender__user=request.user).filter(
+        read_at__isnull=True, id__lte=through).update(read_at=timezone.now())
+    return Response(status=204)

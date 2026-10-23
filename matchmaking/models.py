@@ -36,6 +36,7 @@ class Message(models.Model):
     interest = models.ForeignKey(Interest, on_delete=models.CASCADE, related_name='messages')
     sender = models.ForeignKey(Profile, on_delete=models.CASCADE)
     text = models.CharField(max_length=4000)
+    read_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     class Meta:
         ordering = ['created_at', 'id']

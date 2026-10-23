@@ -206,7 +206,7 @@ class ApiTests(APITestCase):
         self.client.post(f'/api/profiles/{self.pb.pk}/interest/')
         self.assertEqual(Interest.objects.count(),1)
         self.assertEqual(self.client.patch(f'/api/interests/{pk}/',{'status':'accepted'}).status_code,404)
-        self.assertEqual(self.client.post(f'/api/interests/{pk}/messages/',{'text':'Hello'}).status_code,404)
+        self.assertEqual(self.client.post(f'/api/interests/{pk}/messages/',{'text':'Hello'}).status_code,201)
         self.client.force_authenticate(self.b)
         self.assertEqual(self.client.patch(f'/api/interests/{pk}/',{'status':'accepted'}).status_code,200)
         self.assertEqual(self.client.post(f'/api/interests/{pk}/messages/',{'text':'Hello'}).status_code,201)
@@ -214,9 +214,31 @@ class ApiTests(APITestCase):
         self.client.force_authenticate(self.c)
         self.assertEqual(self.client.get(f'/api/interests/{pk}/messages/').status_code,404)
         self.assertEqual(self.client.post(f'/api/interests/{pk}/messages/',{'text':'Intrusion'}).status_code,404)
-        self.assertEqual(Message.objects.count(),1)
+        self.assertEqual(Message.objects.count(),2)
         self.client.force_authenticate(self.a)
-        self.assertEqual(self.client.get(f'/api/interests/{pk}/messages/').data['results'][0]['sender'],'them')
+        self.assertEqual(self.client.get(f'/api/interests/{pk}/messages/').data['results'][-1]['sender'],'them')
+
+    def test_inbox_unread_and_declined_conversations(self):
+        connection = Interest.objects.create(sender=self.pa, recipient=self.pb)
+        sent = self.client.post(f'/api/interests/{connection.pk}/messages/', {'text': 'Hello Bob'})
+        self.assertEqual(sent.status_code, 201)
+        self.assertEqual(self.client.get('/api/inbox/').data[0]['unread'], 0)
+        self.client.force_authenticate(self.b)
+        row = self.client.get('/api/inbox/').data[0]
+        self.assertEqual(row['unread'], 1)
+        self.assertEqual(row['profile']['id'], str(self.pa.pk))
+        later = Message.objects.create(interest=connection, sender=self.pa, text='Another message')
+        self.assertEqual(self.client.post(f'/api/interests/{connection.pk}/read/', {'through': sent.data['id']}).status_code, 204)
+        self.assertEqual(self.client.get('/api/inbox/').data[0]['unread'], 1)
+        self.client.force_authenticate(self.c)
+        self.assertEqual(self.client.get('/api/inbox/').data, [])
+        self.assertEqual(self.client.post(f'/api/interests/{connection.pk}/read/', {'through': later.pk}).status_code, 404)
+        self.assertEqual(APIClient().get('/api/inbox/').status_code, 401)
+        connection.status = 'declined'
+        connection.save()
+        self.client.force_authenticate(self.a)
+        self.assertEqual(self.client.post(f'/api/interests/{connection.pk}/messages/', {'text': 'No'}).status_code, 404)
+        self.assertEqual(self.client.get('/api/inbox/').data, [])
 
 @override_settings(DEBUG=True, OTP_DELIVERY_MODE='local', OTP_ALLOW_TEST_CODE=False)
 class OtpTests(APITestCase):

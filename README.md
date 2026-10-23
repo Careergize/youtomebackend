@@ -123,3 +123,12 @@ python manage.py runserver 127.0.0.1:8001
 The backend loads `backend/.env` automatically; existing process environment variables take precedence. Restart Django after setting variables. TURN credentials are delivered to authenticated browsers as required by WebRTC; use short-lived relay credentials for production. A real TURN service is not provisioned by this project. Media connectivity across restrictive networks must be checked with that service configured.
 
 If an accepted call stays on Connecting, test both devices on the same Wi-Fi. A successful same-network call followed by failure across networks points to a relay/connectivity problem. Configure a real TURN service in `WEBRTC_ICE_SERVERS` on the deployed backend, including the URLs, username, and credential supplied by that service. Include TURN over TLS on port 443 if the provider supports it for restrictive networks. Restart the backend and test across Wi-Fi and mobile data. Do not substitute placeholder credentials or assume a STUN-only setup provides relay support. The frontend ends an accepted call after 30 seconds without a media connection and shows a connection timeout message.
+
+
+### Direct messages and inbox
+
+Deploy frontend and backend together for the Messages UI. Run `python manage.py migrate` before restarting the API to add message read tracking (migration 0006). Existing message history is retained. Development still proxies the hosted API, so local frontend changes require the updated backend on that API host (or a proxy target pointing at a migrated local backend).
+
+Members can open Message on a profile without accepting an interest. Conversations reuse the existing interest record in pending state; sending a message does not accept the interest. Declined connections cannot send messages. Calls still require accepted interests.
+
+`GET /api/inbox/` returns conversations with last-message previews and server-persisted unread counts. `POST /api/interests/{id}/read/` accepts `through` (last displayed message ID), marking only incoming messages up to that ID as read. Access is restricted to participants. The UI polls every five seconds, displays clickable in-app notifications, unread badges, and a browser-tab count. Notifications work while the app is open; background push and email notifications are not implemented.

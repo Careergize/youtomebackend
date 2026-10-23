@@ -21,6 +21,8 @@ urlpatterns = [
     path('api/profiles/<uuid:pk>/', views.ProfileDetail.as_view()),
     path('api/profiles/<uuid:pk>/shortlist/', views.shortlist),
     path('api/profiles/<uuid:pk>/interest/', views.send_interest),
+    path('api/inbox/', views.inbox),
+    path('api/interests/<int:pk>/read/', views.read_messages),
     path('api/interests/', views.interests),
     path('api/interests/<int:pk>/', views.respond_interest),
     path('api/interests/<int:pk>/messages/', views.Messages.as_view()),
